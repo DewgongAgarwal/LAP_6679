@@ -176,17 +176,25 @@ void SAP(int32_t workers, int32_t** costsInput) {
     free(assignment);
 }
 
+void generateCosts(int32_t** costs, int32_t workers) {
+    for(int32_t i = 0; i < workers; i++) {
+        for(int32_t j = 0; j < workers; j++) {
+            costs[i][j] = rand() % workers;
+        }
+    }
+}
+
 int main() {
-    int32_t workers = 5;
+    int32_t workers = 1024;
     int32_t array[25] = {9, 22, 58, 11, 19, 43, 78, 72, 50, 63, 41, 28, 91, 37, 45, 74, 42, 27, 49, 39, 36, 11, 57, 22, 25};
     int32_t** costs = calloc(workers, sizeof(int32_t*));
     for(int32_t i = 0; i < workers; i++) {
         costs[i] = calloc(workers, sizeof(int32_t));
-        for (int32_t j = 0; j < workers; j++) {
-            costs[i][j] = array[i * workers + j];
-        }
+        // for (int32_t j = 0; j < workers; j++) {
+        //     costs[i][j] = array[i * workers + j];
+        // }
     }
-
+    generateCosts(costs, workers);
     SAP(workers, costs);
 
     for(int32_t i = 0; i < workers; i++) {
