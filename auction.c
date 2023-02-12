@@ -2,6 +2,19 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+void printArray(int32_t* a, int32_t size) {
+    for(int32_t i = 0; i < size; i++) {
+        printf("%d, ", a[i]);
+    }
+    printf("\n");
+}
+
+void printMatrix(int32_t** m, int32_t rows) {
+    for(int32_t i = 0; i < rows; i++) {
+        printArray(m[i], rows);
+    }
+}
+
 int32_t findAssignedWorker(int32_t* assigned, int32_t task, int32_t workers) {
     int32_t worker = 0;
     for(int32_t i = 0; i < workers; i++) {
@@ -52,7 +65,7 @@ int32_t secondLargest(int32_t* costs, int32_t* prices, int32_t workers, int32_t 
 
 int32_t everyoneSatisfied(int32_t** costs, int32_t* assigned, int32_t* prices, int32_t workers, int32_t sense) {
     int32_t satisfied = true;
-    float eps = 0.5;
+    int32_t eps = 1;
     int32_t worker = 0;
     int32_t index = 0;
     for (worker = 0; worker < workers; worker++) {
@@ -81,13 +94,6 @@ int32_t everyoneSatisfied(int32_t** costs, int32_t* assigned, int32_t* prices, i
     return false;
 }
 
-void printArray(int32_t* a, int32_t size) {
-    for(int32_t i = 0; i < size; i++) {
-        printf("%d, ", a[i]);
-    }
-    printf("\n");
-}
-
 void auction(int32_t workers, int32_t** costs, int32_t sense) {
 
     int32_t* assigned = calloc(workers, sizeof(int32_t));
@@ -110,18 +116,27 @@ void auction(int32_t workers, int32_t** costs, int32_t sense) {
     free(prices);
 }
 
+void generateCosts(int32_t** costs, int32_t workers) {
+    for(int32_t i = 0; i < workers; i++) {
+        for(int32_t j = 0; j < workers; j++) {
+            costs[i][j] = rand() % (3 * workers);
+        }
+    }
+}
+
 int main() {
-    int32_t workers = 5;
+    int32_t workers = 64;
     int32_t sense = -1; // -1 is minimize and 1 is maximize
-    int32_t array[25] = {9, 22, 58, 11, 19, 43, 78, 72, 50, 63, 41, 28, 91, 37, 45, 74, 42, 27, 49, 39, 36, 11, 57, 22, 25};
+    int32_t array[9] = {10, 25, 40, 10, 25, 50, 100, 100, 100};
     int32_t** costs = calloc(workers, sizeof(int32_t*));
     for(int32_t i = 0; i < workers; i++) {
         costs[i] = calloc(workers, sizeof(int32_t));
-        for (int32_t j = 0; j < workers; j++) {
-            costs[i][j] = array[i * workers + j];
-        }
+        // for (int32_t j = 0; j < workers; j++) {
+        //     costs[i][j] = array[i * workers + j];
+        // }
     }
-
+    generateCosts(costs, workers);
+    printMatrix(costs, workers);
     auction(workers, costs, sense);
 
     for(int32_t i = 0; i < workers; i++) {
