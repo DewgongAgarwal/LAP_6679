@@ -1,4 +1,4 @@
-# An accumulation of the solution algorithms for the Linear Assignment Problem in C and Cuda (GPU). Algorithms implemented include:
+# An accumulation of the solution algorithms for the Linear Assignment Problem in C and Cuda (GPU).
 
 ## CPU Algorithms
 * Auction Algorithm
