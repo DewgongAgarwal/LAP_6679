@@ -137,6 +137,7 @@ bool search(int32_t** costs, double* Dr, double* Dc, int32_t* Vr, int32_t* Vc, i
                     if (inew == -1) {
                         augment(j, Ar, Ac, Pr, Pc);
                         optimalityCheck(Vr, Vc, Pr, Pc, workers, matchCount, Ar, Ac);
+                        initSlack(slack, workers);
                         return true;
                     } else {
                         Vc[j] = 1;
