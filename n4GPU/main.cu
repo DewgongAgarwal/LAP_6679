@@ -107,7 +107,7 @@ __host__ void declare(int32_t** a, int32_t size) {
 }
 
 int n4Hungarian(int32_t workers) {
-    srand(0);
+    //srand(0);
     printf("Workers: %d\n", workers);
     // int32_t array[16] = {9, 22, 58, 11, 43, 78, 72, 50, 41, 28, 91, 37, 74, 42, 27, 49};
     int32_t** costs = (int32_t**)calloc(workers, sizeof(int32_t*));
