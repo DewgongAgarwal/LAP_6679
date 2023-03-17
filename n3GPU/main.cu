@@ -109,7 +109,7 @@ __global__ void initialize(double* a, double initialValue, int32_t size) {
 }
   
   int n3Hungarian(int32_t workers) {
-    srand(0);
+    //srand(0);
     double step1Time = 0.0, step2Time = 0.0, step3Time = 0.0, step4Time = 0.0, step5Time = 0.0, step6Time = 0.0;
     int32_t** costs = (int32_t**)calloc(workers, sizeof(int32_t*));
     for(int32_t i = 0; i < workers; i++) {
