@@ -96,7 +96,7 @@ __host__ void unflatten(int32_t** costs, int32_t* cols, int32_t workers) {
 __host__ void generateCosts(int32_t** costs, int32_t workers) {
     for(int32_t i = 0; i < workers; i++) {
         for(int32_t j = 0; j < workers; j++) {
-            costs[i][j] = rand() % (workers / 10 + 1);
+            costs[i][j] = rand() % (workers * 10 + 1);
         }
     }
 }
@@ -107,7 +107,7 @@ __host__ void declare(int32_t** a, int32_t size) {
 }
 
 int n4Hungarian(int32_t workers) {
-    //srand(0);
+    srand(0);
     printf("Workers: %d\n", workers);
     // int32_t array[16] = {9, 22, 58, 11, 43, 78, 72, 50, 41, 28, 91, 37, 74, 42, 27, 49};
     int32_t** costs = (int32_t**)calloc(workers, sizeof(int32_t*));
@@ -130,11 +130,10 @@ int n4Hungarian(int32_t workers) {
     flatten(costs, workers, costsRowwise_h);
     int32_t blocks = (workers + threads - 1) / threads;
     int32_t bigBlocks = (workers * workers + bigThreads - 1) / bigThreads;
-    int32_t colPerBlockIn4 = 512;
+    int32_t colPerBlock = 512;
     int32_t newSlackSize = (workers * workers + 512 - 1) / 512;
     int32_t newSlack2Size = (newSlackSize + 256 - 1) / 256;
-    int32_t blocksStep4 = (workers + colPerBlockIn4 - 1) / colPerBlockIn4;
-    int32_t threadsStep4 = 0;
+    int32_t blocksStep2And4 = (workers + colPerBlock - 1) / colPerBlock;
 
     int32_t* rowMins_d;
     int32_t* colMins_d;
@@ -161,7 +160,7 @@ int n4Hungarian(int32_t workers) {
     declare(&newSlack, newSlackSize);
     declare(&newSlack2, newSlack2Size);
     declare(&zeroes, workers * workers);
-    declare(&zeroesSizes_d, blocksStep4);
+    declare(&zeroesSizes_d, blocksStep2And4);
     declare(&allZeroesSize, 1);
     declare(&repeatKernel, 1);
     declare(&rowOfStarAtCol, workers);
@@ -183,7 +182,7 @@ int n4Hungarian(int32_t workers) {
     initialize<<<blocks, threads>>>(coveredCols, 0, workers);
     initialize<<<blocks, threads>>>(rowOfStarAtCol, -1, workers);
     initialize<<<blocks, threads>>>(colOfStarAtRow, -1, workers);
-    initialize<<<(blocksStep4 + threads - 1) / threads, threads>>>(zeroesSizes_d, 0, blocksStep4);
+    initialize<<<(blocksStep2And4 + threads - 1) / threads, threads>>>(zeroesSizes_d, 0, blocksStep2And4);
 
     cudaMemcpy(costsRowwise_d, costsRowwise_h, sizeof(int32_t) * workers * workers, cudaMemcpyHostToDevice);
     transpose<<<bigBlocks, bigThreads>>>(costsRowwise_d, slacks, workers);
@@ -198,7 +197,7 @@ int n4Hungarian(int32_t workers) {
     
     subtractFromCol<<<bigBlocks, bigThreads>>>(slacks, colMins_d, workers);
     
-    compressKernel<<<bigBlocks, bigThreads>>>(slacks, zeroes, zeroesSizes_d, allZeroesSize, colPerBlockIn4 * workers, workers, workers * workers);
+    compressKernel<<<bigBlocks, bigThreads>>>(slacks, zeroes, zeroesSizes_d, allZeroesSize, colPerBlock * workers, workers, workers * workers);
     
     stopTime(&timer1);
     step1Time += elapsedTime(timer1);
@@ -207,10 +206,7 @@ int n4Hungarian(int32_t workers) {
         *repeat = 0;
         cudaMemset(repeatKernel, 0, sizeof(int32_t));
         
-        cudaMemcpy(zeroesCopy, allZeroesSize, sizeof(int32_t), cudaMemcpyDeviceToHost);
-        
-        threadsStep4 = (blocksStep4 > 1 || *zeroesCopy > threads) ? threads : *zeroesCopy;
-        initialMatching<<<blocksStep4, threadsStep4>>>(rowOfStarAtCol, colOfStarAtRow, coveredRows, coveredCols, zeroes, zeroesSizes_d, repeatKernel, colPerBlockIn4 * workers, workers);
+        initialMatching<<<blocksStep2And4, colPerBlock>>>(rowOfStarAtCol, colOfStarAtRow, coveredRows, coveredCols, zeroes, zeroesSizes_d, repeatKernel, colPerBlock * workers, workers);
         
         cudaMemcpy(repeat, repeatKernel, sizeof(int32_t), cudaMemcpyDeviceToHost);
         
@@ -248,10 +244,7 @@ int n4Hungarian(int32_t workers) {
             do {
                 cudaMemset(repeatKernel, 0, sizeof(int32_t));
                 cudaMemset(goToStep5Kernel, 0, sizeof(int32_t));
-                cudaMemcpy(zeroesCopy, allZeroesSize, sizeof(int32_t), cudaMemcpyDeviceToHost);
-                
-                threadsStep4 = (blocksStep4 > 1 || *zeroesCopy > threads) ? threads : *zeroesCopy;
-                alternatingGraphPathSearch<<<blocksStep4, threadsStep4>>>(coveredRows, coveredCols, zeroes, zeroesSizes_d, colPerBlockIn4 * workers, workers, repeatKernel, goToStep5Kernel, colOfStarAtRow, colOfPrimeAtRow);
+                alternatingGraphPathSearch<<<blocksStep2And4, colPerBlock>>>(coveredRows, coveredCols, zeroes, zeroesSizes_d, colPerBlock * workers, workers, repeatKernel, goToStep5Kernel, colOfStarAtRow, colOfPrimeAtRow);
                 
                 cudaMemcpy(repeat, repeatKernel, sizeof(int32_t), cudaMemcpyDeviceToHost);
                 cudaMemcpy(goToStep5, goToStep5Kernel, sizeof(int32_t), cudaMemcpyDeviceToHost);
@@ -264,9 +257,9 @@ int n4Hungarian(int32_t workers) {
             }
             startTime(&timer6);
             getMinSlack(slacks, newSlack, newSlack2, workers * workers, workers, min, coveredCols, coveredRows);
-            addSub<<<bigBlocks, bigThreads>>>(*min, blocksStep4, zeroesSizes_d, allZeroesSize, workers, slacks, coveredRows, coveredCols, workers * workers);
+            addSub<<<bigBlocks, bigThreads>>>(*min, blocksStep2And4, zeroesSizes_d, allZeroesSize, workers, slacks, coveredRows, coveredCols, workers * workers);
             
-            compressKernel<<<bigBlocks, bigThreads>>>(slacks, zeroes, zeroesSizes_d, allZeroesSize, colPerBlockIn4 * workers, workers, workers * workers);
+            compressKernel<<<bigBlocks, bigThreads>>>(slacks, zeroes, zeroesSizes_d, allZeroesSize, colPerBlock * workers, workers, workers * workers);
             
             stopTime(&timer6);
             step6Time += elapsedTime(timer6);
